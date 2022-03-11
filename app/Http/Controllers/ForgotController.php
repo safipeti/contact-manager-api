@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ForgotRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
+use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class ForgotController extends Controller
@@ -30,7 +31,10 @@ class ForgotController extends Controller
                 'token' => $token
             ]);
 
-            // Send email
+            Mail::send('mails.forgot', ['token' => $token], function (Message $message) use ($email){
+                $message->to($email);
+                $message->subject('Reset your password');
+            });
 
             return response([
                 'message' => 'Check your email'
@@ -41,6 +45,5 @@ class ForgotController extends Controller
                 'message' => $exception->getMessage()
             ], 400);
         }
-
     }
 }
