@@ -15,6 +15,10 @@ class CreateContactPicturesTable extends Migration
     {
         Schema::create('contact_pictures', function (Blueprint $table) {
             $table->id();
+            $table->string('origFileName');
+            $table->string('fileName');
+            $table->string('filePath');
+            $table->foreignId('contactId')->constrained('contacts');
             $table->timestamps();
         });
     }

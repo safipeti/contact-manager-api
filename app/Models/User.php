@@ -31,4 +31,8 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    public function contacts() {
+        return $this->hasMany(Contact::class, 'userId');
+    }
 }
