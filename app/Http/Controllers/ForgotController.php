@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ForgotRequest;
+use App\Http\Requests\ResetRequest;
 use App\Models\User;
 use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -45,5 +47,29 @@ class ForgotController extends Controller
                 'message' => $exception->getMessage()
             ], 400);
         }
+    }
+
+    public function reset(ResetRequest $request)
+    {
+        $token = $request->get('token');
+
+        if (!$passwordResets = DB::table('password_resets')->where(['token' => $token])->first()) {
+            return response([
+                'message' => 'Invalid token'
+            ], 404);
+        }
+
+        if (!$user = User::where('email', $passwordResets->email)->first()) {
+            return repose([
+                'message' => 'User doesn\'t exit!'
+            ], 404);
+        }
+
+        $user->password = Hash::make($request->get('password'));
+        $user->save();
+
+        return response([
+            'message' => 'success',
+        ]);
     }
 }
