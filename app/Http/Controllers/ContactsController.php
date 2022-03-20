@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 class ContactsController extends Controller
 {
+
     const SALT = 896542;
 
     public function store(ContactRequest $request)
@@ -43,6 +44,23 @@ class ContactsController extends Controller
 
         } catch (\Exception $exception) {
             return $exception->getMessage();
+        }
+
+    }
+
+    public function show(int $id)
+    {
+        try {
+            $contact = Contact::where(['id' => $id, 'userId' => Auth::id()])
+                ->with(['emails', 'phones', 'address', 'contactPicture'])
+                ->firstOrFail();
+
+            if ($contact->exists()) {
+                return \response($contact);
+            }
+
+        } catch (\Exception $exception) {
+            return \response(['message' => 'Not found - 404'], \Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
         }
     }
 }
