@@ -30,8 +30,10 @@ class AuthController extends Controller
                 'error_message' => 'Invalid credentials'
             ], 401);
         } catch (\Exception $ex) {
+
             return response([
                 'success' => false,
+                'error_message' => $ex->getMessage()
             ], 400);
         }
     }
@@ -44,7 +46,6 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         try {
-
             $user = User::create([
                 'email' => $request->get('email'),
                 'name' => $request->get('name'),
@@ -57,6 +58,19 @@ class AuthController extends Controller
             return response([
                 'message' => $exception->getMessage(),
             ], 400);
+        }
+    }
+
+    public function logout()
+    {
+        try {
+            if (Auth::check()) {
+                Auth::user()->oaaToken()->delete();
+                return 'logged out';
+            }
+
+        }catch (\Exception $exception) {
+            return $exception->getMessage();
         }
     }
 }

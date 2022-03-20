@@ -35,4 +35,8 @@ class User extends Authenticatable
     public function contacts() {
         return $this->hasMany(Contact::class, 'userId');
     }
+
+    public function oaaToken() {
+        return $this->hasMany(OauthAccessToken::class, 'user_id');
+    }
 }
