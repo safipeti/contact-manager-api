@@ -196,6 +196,18 @@ class ContactsController extends Controller
         return $contact;
     }
 
+    public function destroy(Request $request, int $id)
+    {
+        $contact = Contact::find($id);
+        if ($contact->contactPicture()->count() > 0) {
+            $fileToDelete = $contact->contactPicture->fileName;
+
+            // delete from storage
+            Storage::delete(env('CONTACT_PICTURES_FOLDER') . '/' . sha1(Auth::id() + self::SALT) . '/' . $fileToDelete);
+        }
+        Contact::destroy($id);
+    }
+
     private function crudPartition($oldData, $newData)
     {
         $oldIds = collect($oldData)->pluck('id')->toArray();

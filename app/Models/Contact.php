@@ -48,7 +48,6 @@ class Contact extends Model
             $contact->phones()->delete();
             $contact->address()->delete();
             $contact->emails()->delete();
-            $contact->social()->delete();
             $contact->contactPicture()->delete();
         });
     }
