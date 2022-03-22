@@ -7,7 +7,6 @@ use App\Models\Address;
 use App\Models\Contact;
 use App\Models\Email;
 use App\Models\Phone;
-use App\Models\Social;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +16,45 @@ class ContactsController extends Controller
 {
 
     const SALT = 896542;
+
+    public function index()
+    {
+        $limit = 3;
+        $searchTerm = \request()->get('searchTerm');
+        $currentPage = empty(\request()->get('currentPage')) ? 1 : \request()->get('currentPage');
+        $offset = $limit * ($currentPage - 1);
+
+        if ($searchTerm) {
+            $contacts = Contact::with('emails', 'phones', 'address', 'contactPicture')
+                ->where('name', 'like', '%'.$searchTerm.'%')
+                ->orwhere('notes', 'like', '%'.$searchTerm.'%')
+                ->orwhereHas('emails', function($query) use($searchTerm) {
+                    $query->Where('emailAddress', 'like', '%'.$searchTerm.'%');
+                })
+                ->orwhereHas('phones', function($query) use($searchTerm) {
+                    $query->Where('phoneNumber', 'like', '%'.$searchTerm.'%');
+                })
+                ->orwhereHas('address', function($query) use($searchTerm) {
+                    $query->Where('city', 'like', '%'.$searchTerm.'%');
+                    $query->orWhere('zipCode', 'like', '%'.$searchTerm.'%');
+                    $query->orWhere('country', 'like', '%'.$searchTerm.'%');
+                    $query->orWhere('misc', 'like', '%'.$searchTerm.'%');
+                    $query->orWhere('street', 'like', '%'.$searchTerm.'%');
+                });
+            $totalContacts = $contacts->count();
+            $contacts = $contacts->skip( $offset)
+                ->take($limit)
+                ->get();
+            return \response(['contacts' => $contacts, 'totalContacts' => $totalContacts]);
+
+        } else {
+            $contacts = Contact::with(['emails', 'phones', 'address', 'contactPicture']);
+            $totalContacts = $contacts->count();
+            $contacts = $contacts->skip( $offset)->take($limit)->get();
+
+            return response(['contacts' => $contacts, 'totalContacts' => $totalContacts]);
+        }
+    }
 
     public function store(ContactRequest $request)
     {
@@ -56,6 +94,7 @@ class ContactsController extends Controller
                 ->firstOrFail();
 
             if ($contact->exists()) {
+
                 return \response($contact);
             }
 
