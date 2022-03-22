@@ -71,7 +71,7 @@ class ContactsController extends Controller
                 $contact->contactPicture()->create([
                     'origFileName' => $file->getClientOriginalName(),
                     'fileName' => $fileName,
-                    'filePath' => 'contactpictures/' . sha1(Auth::id() + self::SALT) . '/' . $fileName,
+                    'filePath' => env('CONTACT_PICTURES_FOLDER'). '/' . sha1(Auth::id() + self::SALT) . '/' . $fileName,
                     'contactId' => $contact->id
                 ]);
 
@@ -83,7 +83,6 @@ class ContactsController extends Controller
         } catch (\Exception $exception) {
             return $exception->getMessage();
         }
-
     }
 
     public function show(int $id)
@@ -101,5 +100,118 @@ class ContactsController extends Controller
         } catch (\Exception $exception) {
             return \response(['message' => 'Not found - 404'], \Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
         }
+    }
+
+    public function update(Request $request, int $id)
+    {
+        //return $request->get('name');
+        try {
+            $contact = Contact::find($id);
+            $contact->update($request->all());
+        } catch (\Exception $exception) {
+            return \response(['message' => 'Not found - 404'], \Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
+        }
+
+        // UPDATE PHONES
+        $crudPhones = $this->crudPartition($contact->phones, $request->get('phones'));
+
+        // create new ones
+        $contact->phones()->saveMany(collect($crudPhones['create'])->map(function ($phone) {
+            return new Phone(['type' => $phone['type'], 'phoneNumber' => $phone['phoneNumber']]);
+        }));
+
+        foreach ($crudPhones['update'] as $toUpdate) {
+            Phone::where('id', $toUpdate['id'])->update($toUpdate);
+        }
+
+        // delete phones
+        Phone::destroy(collect($crudPhones['delete']));
+
+
+        // UPDATE EMAILS
+        $crudEmails = $this->crudPartition($contact->emails, $request->get('emails'));
+
+        // create new ones
+        $contact->emails()->saveMany(collect($crudEmails['create'])->map(function ($email) {
+            return new Email(['type' => $email['type'], 'emailAddress' => $email['emailAddress']]);
+        }));
+
+        foreach ($crudEmails['update'] as $toUpdate) {
+            Email::where('id', $toUpdate['id'])->update($toUpdate);
+        }
+
+        // delete emails
+        Email::destroy(collect($crudEmails['delete']));
+
+        // UPDATE ADDRESS
+        if ($request->get('address')) {
+            foreach ($request->get('address') as $addressItem) {
+                if (!empty($addressItem)) {
+                    $contact->address()->firstOrCreate($request->get('address'));
+                }
+            }
+        }
+
+        // HANDLE PICTURE
+        $file = $request->file('picture');
+        if ($file) {
+            $fileName = sha1(Carbon::now()) . '.' . $file->getClientOriginalExtension();
+
+            //$contact = Contact::find($id);
+
+            if ($contact->contactPicture != null) {
+                $fileToUpdate = $contact->contactPicture->fileName;
+
+
+                // delete from db
+                $contact->contactPicture()->update([
+                    'origFileName' => $file->getClientOriginalName(),
+                    'fileName' => $fileName,
+                    'filePath' => env('CONTACT_PICTURES_FOLDER') . '/' . sha1(Auth::id() + self::SALT) . '/' . $fileName,
+                ]);
+
+                // delete from storage
+                Storage::delete(env('CONTACT_PICTURES_FOLDER') . '/' . sha1(Auth::id() + self::SALT) . '/' . $fileToUpdate);
+
+            } else {
+
+                $contact->contactPicture()->create([
+                    'origFileName' => $file->getClientOriginalName(),
+                    'fileName' => $fileName,
+                    'filePath' => env('CONTACT_PICTURES_FOLDER') . '/' . sha1(Auth::id() + self::SALT) . '/' . $fileName,
+                    'contactId' => $contact->id
+                ]);
+            }
+
+            $request->file('picture')->storeAs(env('CONTACT_PICTURES_FOLDER') . '/' . sha1(Auth::id() + self::SALT) . '/', $fileName);
+        } else {
+            if ($contact->contactPicture) {
+                $contact->contactPicture->delete();
+
+                // delete from storage
+                Storage::delete(env('CONTACT_PICTURES_FOLDER') . '/' . sha1(Auth::id() + self::SALT) . '/' . $contact->contactPicture->fileName);
+            }
+        }
+
+        return $contact;
+    }
+
+    private function crudPartition($oldData, $newData)
+    {
+        $oldIds = collect($oldData)->pluck('id')->toArray();
+        $newIds = collect($newData)->pluck('id')->toArray();
+
+        $delete = array_diff($oldIds, array_intersect($oldIds, $newIds));
+
+        $create = collect($newData)
+            ->filter(function ($model) use ($oldIds) {
+                return !array_key_exists('id', $model);
+            });
+
+        $update = collect($newData)
+            ->filter(function ($model) use ($oldIds) {
+                return array_key_exists('id', $model) && in_array($model['id'], $oldIds);
+            });
+        return compact('delete', 'update', 'create');
     }
 }
