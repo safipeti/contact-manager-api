@@ -27,9 +27,6 @@ Route::post('reset', [ForgotController::class, 'reset']);
 Route::middleware(['auth:api'])->group(function(){
     Route::apiResource('contacts', ContactsController::class);
     Route::post('logout', [AuthController::class, 'logout']);
-    Route::post('upload-picture', [PicturesController::class, 'upload']);
-    Route::post('delete-picture', [PicturesController::class, 'deleteContactPicture']);
-    Route::get('serve-picture', [PicturesController::class, 'serve']);
 });
 
 
